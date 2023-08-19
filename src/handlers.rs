@@ -16,19 +16,24 @@ pub fn eventloop_handler(clients: ws::WsClients, mut eventloop: EventLoop) {
     while let Ok(event) = eventloop.poll().await {
       if let Event::Incoming(Incoming::Publish(packet)) = event {
         info!("Received incoming event");
-        match mqtt::MqttMessage::<String>::try_from(packet.payload.as_ref()) {
-          Ok(message) => {
-            info!("Received message {:?}", message);
-            match clients.lock().await.get(&message.client_id) {
-              Some(client) => {
-                if let Some(sender) = &client.sender {
-                  let _ = sender.send(Ok(warp::ws::Message::text(message.message)));
+        match mqtt::extract_client_from_topic(&packet.topic) {
+          Some(client_id) => {
+            match String::from_utf8(packet.payload.as_ref().to_vec()) {
+              Ok(message) => {
+                info!("Received message to send to {}", client_id);
+                match clients.lock().await.get(client_id) {
+                  Some(client) => {
+                    if let Some(sender) = &client.sender {
+                      let _ = sender.send(Ok(warp::ws::Message::text(message)));
+                    }
+                  },
+                  None => error!("No client found with client_id {}", &client_id)
                 }
               },
-              None => info!("No client found with client_id {}", &message.client_id)
+              Err(e) => error!("Cannot convert message to UTF-8. {:?}", e)
             }
-          },
-          Err(e) => error!("Error while decoding the mqtt message {:?}", e)
+          }
+          None => error!("Received mqtt packet without topic")
         }
       }
     }

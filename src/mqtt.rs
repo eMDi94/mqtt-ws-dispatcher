@@ -3,7 +3,6 @@ use std::env;
 
 use rumqttc::{MqttOptions, AsyncClient, EventLoop};
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
 
 pub fn create_mqtt_client_and_eventloop() -> Result<(AsyncClient, EventLoop)> {
   let client_name = env::var("MQTT_CLIENT_NAME")
@@ -27,19 +26,6 @@ pub fn create_mqtt_client_and_eventloop() -> Result<(AsyncClient, EventLoop)> {
   Ok(AsyncClient::new(options, mqtt_channel_capacity))
 }
 
-#[derive(Deserialize, Serialize, Debug)]
-pub struct MqttMessage<T> {
-  pub client_id: String,
-  pub message: T
-}
-
-impl <T: for<'a> Deserialize<'a> + Serialize> TryFrom<&[u8]> for MqttMessage<T> {
-    type Error = anyhow::Error;
-
-    fn try_from(value: &[u8]) -> std::result::Result<Self, Self::Error> {
-      match String::from_utf8(value.to_vec()) {
-        Ok(serialized_value) => serde_json::from_str(&serialized_value).map_err(|e| anyhow::Error::new(e)),
-        Err(e) => Err(anyhow::Error::new(e))
-      }
-    }
+pub fn extract_client_from_topic(topic: &str) -> Option<&str> {
+  topic.split("/").last()
 }

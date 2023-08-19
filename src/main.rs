@@ -64,5 +64,5 @@ async fn subscribe_to_topic(mqtt_client: &AsyncClient) {
     Ok(t) => t,
     Err(_) => panic!("MQTT_TOPIC must be set")
   };
-  let _ = mqtt_client.subscribe(topic, QoS::ExactlyOnce).await;
+  let _ = mqtt_client.subscribe(&topic, QoS::ExactlyOnce).await;
 }
